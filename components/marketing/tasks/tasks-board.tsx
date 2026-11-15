@@ -3,6 +3,7 @@ import { Suspense, type ReactNode } from "react";
 import "@/app/(app)/[org]/[project]/issues/_list/issues.css";
 import { RememberIssueList } from "@/components/back-to-list";
 import { IdeasList } from "@/components/ideas-list";
+import { OutreachTemplateTrigger } from "@/components/marketing/outreach-template-preview-dialog";
 import { RowAge } from "@/components/issue-row-meta";
 import { IssueRowStatus } from "@/components/issue-row-status";
 import { PaginationControls } from "@/components/pagination-controls";
@@ -15,6 +16,7 @@ import { formatIssueNumber } from "@/lib/issue-number";
 import { isDone } from "@/lib/issue-state";
 import type { BugSortOption } from "@/lib/issues-sort";
 import { ISSUE_SORT_COOKIE } from "@/lib/list-sort";
+import type { OutreachProjectContext } from "@/lib/marketing/templates/cold-outreach";
 import { marketingPath, type ProjectRef } from "@/lib/project-paths";
 import { TASK_STAGES, taskTab, tasksHref, type TaskRow, type TaskTabParam, type TasksBoardData } from "./model";
 
@@ -36,11 +38,17 @@ export function TasksBoard({
   slug,
   board,
   notice,
+  project,
+  brief,
+  outreachType,
 }: {
   slug: ProjectRef;
   board: TasksBoardData;
   /** A card shown inside the panel, under the stages, as the Ideas list shows its notices (the Create an agent card). */
   notice?: ReactNode;
+  project?: { name: string; siteUrl?: string | null };
+  brief?: OutreachProjectContext["brief"];
+  outreachType?: { id: string; name: string; isActive: boolean; template?: string | null } | null;
 }) {
   const { tab: current, counts, list, pagination, sortParam } = board;
   const stage = TASK_STAGES.find((candidate) => candidate.steps.includes(current.param));
@@ -83,15 +91,23 @@ export function TasksBoard({
 
         <div className="w-full min-w-0 flex-1 space-y-4">
           {notice}
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            {project ? (
+              <OutreachTemplateTrigger
+                slug={slug}
+                project={project}
+                brief={brief}
+                outreachType={outreachType}
+              />
+            ) : <span />}
+            {list.kind === "proposals" ? (
+              <Link href={marketingPath(slug, "ideas/rejected")} className="rounded-md text-sm font-semibold text-zk-accent hover:underline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-electric-blue">
+                Rejected ideas
+              </Link>
+            ) : null}
+          </div>
           {list.kind === "proposals" ? (
-            <>
-              <div className="flex justify-end">
-                <Link href={marketingPath(slug, "ideas/rejected")} className="rounded-md text-sm font-semibold text-zk-accent hover:underline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-electric-blue">
-                  Rejected ideas
-                </Link>
-              </div>
-              <IdeasList slug={slug} ideas={list.ideas} sort={list.sort} empty={EMPTY.ideas} />
-            </>
+            <IdeasList slug={slug} ideas={list.ideas} sort={list.sort} empty={EMPTY.ideas} />
           ) : list.rows.length === 0 ? (
             <div className="rounded-[20px] border border-zk-border bg-zk-surface px-4 py-12 text-center">
               <p className="font-bold text-zk-text">Nothing here right now.</p>

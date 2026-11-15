@@ -5,7 +5,10 @@ import { parseTaskView, type TasksBoardData } from "@/components/marketing/tasks
 import { TasksBoard } from "@/components/marketing/tasks/tasks-board";
 import { IDEA_SORT_COOKIE, ISSUE_SORT_COOKIE } from "@/lib/list-sort";
 import { logLoadFailure } from "@/lib/load-error";
+import { readProjectBrief } from "@/lib/marketing/brief";
+import { MARKETING_TRACK } from "@/lib/marketing/track";
 import { loadOrganisationNextStep } from "@/lib/organisation-next-step-load";
+import { prisma } from "@/lib/prisma";
 import { projectRef } from "@/lib/project-paths";
 import { requireProject } from "@/lib/project-route";
 import { readTasksBoard } from "../data";
@@ -33,14 +36,33 @@ export default async function MarketingHomePage({ params, searchParams }: Props)
   } catch (error) {
     return <LoadError title="Tasks could not be loaded" reference={logLoadFailure("[marketing tasks] board query failed", error)} />;
   }
-  // The same "Create an agent" card as the Ideas list (#earnings).
-  const nextStep = await loadOrganisationNextStep({
-    userId: context.user.id,
-    appRole: context.user.role,
-    organisationId: context.organisationId,
-    slug: context.project.ref,
-  });
+  const [nextStep, brief, outreachType] = await Promise.all([
+    loadOrganisationNextStep({
+      userId: context.user.id,
+      appRole: context.user.role,
+      organisationId: context.organisationId,
+      slug: context.project.ref,
+    }),
+    readProjectBrief(context.project.id).catch(() => null),
+    prisma.issueType.findFirst({
+      where: {
+        organisationId: context.organisationId,
+        ...MARKETING_TRACK,
+        name: { equals: "Outreach", mode: "insensitive" },
+      },
+      select: { id: true, name: true, isActive: true, template: true },
+    }).catch(() => null),
+  ]);
   // Inside the panel, under the stages, where the Ideas list shows it.
   const notice = nextStep ? <OrganisationNextStepCard step={nextStep} organisationId={context.organisationId} /> : null;
-  return <TasksBoard slug={slug} board={board} notice={notice} />;
+  return (
+    <TasksBoard
+      slug={slug}
+      board={board}
+      notice={notice}
+      project={{ name: context.project.name, siteUrl: brief?.website ?? null }}
+      brief={brief}
+      outreachType={outreachType}
+    />
+  );
 }

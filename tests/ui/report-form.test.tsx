@@ -7,6 +7,7 @@ import { afterEach, describe, expect, it, vi, beforeEach } from "vitest";
 import { unstable_rethrow } from "next/navigation";
 import { createBugAction } from "@/app/actions/issues";
 import { CreateBugForm } from "@/components/create-issue-form";
+import { ConfirmProvider } from "@/components/ui/confirm-dialog";
 
 vi.mock("next/navigation", async (importOriginal) => ({
   ...(await importOriginal<typeof import("next/navigation")>()),
@@ -334,5 +335,38 @@ describe("marketing task types and the report form", () => {
     const { NewMarketingTaskForm } = await import("@/components/marketing/tasks/new-marketing-task-form");
     render(<NewMarketingTaskForm projectId="project-1" types={[]} />);
     expect((screen.getByRole("button", { name: "Propose task" }) as HTMLButtonElement).disabled).toBe(true);
+  }, 15000);
+
+  it("hydrates Outreach for the current project without replacing an edited draft silently", async () => {
+    HTMLDialogElement.prototype.showModal = vi.fn(function (this: HTMLDialogElement) {
+      this.open = true;
+    });
+    HTMLDialogElement.prototype.close = vi.fn(function (this: HTMLDialogElement) {
+      this.open = false;
+    });
+    const { NewMarketingTaskForm } = await import("@/components/marketing/tasks/new-marketing-task-form");
+    render(
+      <ConfirmProvider>
+        <NewMarketingTaskForm
+          projectId="project-1"
+          project={{ name: "Tenant App", siteUrl: "https://tenant.example" }}
+          types={[
+            { id: "blog", name: "Blog post", template: "### Blog outline" },
+            { id: "outreach", name: "Outreach" },
+          ]}
+          initialTypeId="blog"
+        />
+      </ConfirmProvider>,
+    );
+
+    const description = screen.getByRole("textbox", { name: "Description" }) as HTMLTextAreaElement;
+    fireEvent.change(screen.getByLabelText("Task type"), { target: { value: "outreach" } });
+    expect(description.value).toContain("Tenant App");
+    expect(description.value).toContain("https://tenant.example");
+
+    fireEvent.change(description, { target: { value: "My tailored outreach draft" } });
+    fireEvent.change(screen.getByLabelText("Task type"), { target: { value: "blog" } });
+    expect(description.value).toBe("My tailored outreach draft");
+    expect(screen.getByRole("dialog")).toBeDefined();
   }, 15000);
 });

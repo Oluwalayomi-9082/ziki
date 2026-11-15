@@ -1,3 +1,5 @@
+import { DEFAULT_COLD_OUTREACH_TEMPLATE } from "./templates/cold-outreach";
+
 /**
  * The marketing task types every organisation starts with. Types belong to the
  * organisation, so all its projects share them. New organisations get these when they
@@ -12,5 +14,9 @@ export const DEFAULT_MARKETING_TASK_TYPES = [
   { name: "Graphic", description: "An image or visual asset." },
   { name: "Video", description: "A video or short clip." },
   { name: "Case study", description: "A write-up of how someone used the product." },
-  { name: "Outreach", description: "Reaching out to a person, community or publication." },
+  {
+    name: "Outreach",
+    description: "Reaching out to a person, community or publication.",
+    template: DEFAULT_COLD_OUTREACH_TEMPLATE,
+  },
 ] as const;

@@ -57,7 +57,43 @@ import {
 import { updateMarketingSettingsAction } from "@/app/actions/marketing-settings";
 import { GET, PATCH } from "@/app/api/v1/projects/[id]/marketing/settings/route";
 import { readProjectBrief, saveProjectBrief } from "@/lib/marketing/brief";
+import {
+  DEFAULT_COLD_OUTREACH_TEMPLATE,
+  getOutreachTemplateForType,
+  hydrateOutreachTemplate,
+} from "@/lib/marketing/templates/cold-outreach";
 import { NextRequest } from "next/server";
+
+describe("cold outreach templates", () => {
+  it("hydrates each project independently and leaves prospect details for the author", () => {
+    const ziki = hydrateOutreachTemplate(DEFAULT_COLD_OUTREACH_TEMPLATE, {
+      projectName: "Ziki",
+      siteUrl: "https://ziki.dev",
+      brief: { product: "Agentic software delivery", audience: "Software teams" },
+    });
+    const tenant = hydrateOutreachTemplate(DEFAULT_COLD_OUTREACH_TEMPLATE, {
+      projectName: "Acme Metrics",
+      siteUrl: "https://metrics.example",
+      brief: { product: "Edge telemetry", audience: "SRE teams" },
+    });
+
+    expect(ziki).toContain("Ziki");
+    expect(ziki).toContain("https://ziki.dev");
+    expect(ziki).toContain("{{prospect_first_name}}");
+    expect(ziki).not.toContain("Acme Metrics");
+    expect(tenant).toContain("Acme Metrics");
+    expect(tenant).toContain("https://metrics.example");
+    expect(tenant).not.toContain("ziki.dev");
+  });
+
+  it("uses a custom outreach template and safely falls back for existing types", () => {
+    expect(getOutreachTemplateForType({ name: "Outreach", template: "Hello {{project_name}}" }))
+      .toBe("Hello {{project_name}}");
+    expect(getOutreachTemplateForType({ name: "Outreach", template: null }))
+      .toBe(DEFAULT_COLD_OUTREACH_TEMPLATE);
+    expect(getOutreachTemplateForType({ name: "Blog post", template: null })).toBeNull();
+  });
+});
 
 describe("The project brief (M-API-8)", () => {
   const stored = { product: "Ziki", audience: null, currentFocus: "First ten teams", outOfScope: null };
